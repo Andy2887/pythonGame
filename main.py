@@ -36,11 +36,31 @@ BG_2 = pygame.image.load("assets/menu_options/Background_2.jpg")
 RECT_IMAGE = pygame.image.load("assets/menu_options/grey_rect.png")
 bullet_img = pygame.image.load('assets/img/icons/bullet.png').convert_alpha()
 grenade_img = pygame.image.load('assets/img/icons/grenade.png').convert_alpha()
+heal_box_img = pygame.image.load('assets/img/icons/health_box.png').convert_alpha()
+ammo_box_img = pygame.image.load('assets/img/icons/ammo_box.png').convert_alpha()
+grenade_box_img = pygame.image.load('assets/img/icons/grenade_box.png').convert_alpha()
+item_boxes = {
+    'Health': heal_box_img,
+    'Ammo' : ammo_box_img,
+    'Grenade' : grenade_box_img
+}
 
-# Draw background
+# initialize sprite groups
+enemy_group = pygame.sprite.Group()
+bullet_group = pygame.sprite.Group()
+grenade_group = pygame.sprite.Group()
+explosion_group = pygame.sprite.Group()
+item_box_group = pygame.sprite.Group()
+
+# draw background
 def draw_bg():
     screen.fill(WHITE)
     pygame.draw.line(screen, RED, (0, 300), (SCREEN_WIDTH, 300))
+
+def draw_text(text, text_col, x, y):
+    font = get_font(30)
+    img = font.render(text, True, text_col)
+    screen.blit(img, (x,y))
 
 # Button Class
 class Button():
@@ -286,14 +306,52 @@ class Soldier(pygame.sprite.Sprite):
     def draw(self):
         screen.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
 
+class HealthBar():
+    def __init__(self, x, y, health, max_health):
+        self.x = x
+        self.y = y
+        self.health = health
+        self.max_health = max_health
+
+    def draw(self, health):
+        # update with new health
+        self.health = health
+        ratio = self.health / self.max_health
+        pygame.draw.rect(screen, BLACK, (self.x - 2, self.y - 2, 154, 24))
+        pygame.draw.rect(screen, RED, (self.x, self.y, 150, 20))
+        pygame.draw.rect(screen, GREEN, (self.x, self.y, 150 * ratio, 20))
+
 
 # initialize soldier object for player
-enemy_group = pygame.sprite.Group()
 player = Soldier('player',200,200,3,4, 20, 5)
+health_bar = HealthBar(10,10, player.health, player.health)
+
 enemy1 = Soldier('enemy',200,200,3,4, 20, 0)
 enemy2 = Soldier('enemy',600,200,3,4, 20, 0)
 enemy_group.add(enemy1)
 enemy_group.add(enemy2)
+
+class ItemBox(pygame.sprite.Sprite):
+    def __init__(self, item_type, x, y):
+        pygame.sprite.Sprite.__init__(self)
+        self.item_type = item_type
+        self.image = item_boxes[self.item_type]
+        self.rect = self.image.get_rect()
+        self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()))
+
+    def update(self):
+        if pygame.sprite.collide_rect(self, player):
+            # check what kind of box it was
+            if self.item_type == 'Health':
+                player.health += 25
+                if player.health > player.max_health:
+                    player.health = player.max_health
+            elif self.item_type == 'Ammo':
+                player.ammo += 15
+            elif self.item_type == 'Grenade':
+                player.num_grenades += 3
+            self.kill()
+
 
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, x, y, direction):
@@ -324,8 +382,7 @@ class Bullet(pygame.sprite.Sprite):
                     enemy.health -= 25
                     self.kill()
 
-# create sprite groups
-bullet_group = pygame.sprite.Group()
+
 
 class Grenade(pygame.sprite.Sprite):
     def __init__(self, x, y, direction):
@@ -381,9 +438,6 @@ class Grenade(pygame.sprite.Sprite):
 
 
 
-
-grenade_group = pygame.sprite.Group()
-
 class Explosion(pygame.sprite.Sprite):
     def __init__(self, x, y, scale):
         pygame.sprite.Sprite.__init__(self)
@@ -416,7 +470,6 @@ class Explosion(pygame.sprite.Sprite):
 
 
 
-explosion_group = pygame.sprite.Group()
 
 
 def get_font(size):
@@ -562,6 +615,15 @@ def play():
 
     pygame.display.set_caption('shooter')
 
+    # temp - create item boxes
+    item_box = ItemBox('Health', 100, 260)
+    item_box_group.add(item_box)
+    item_box = ItemBox('Ammo', 600, 260)
+    item_box_group.add(item_box)
+
+    item_box = ItemBox('Grenade', 300, 260)
+    item_box_group.add(item_box)
+
     while True:
 
         clock.tick(FPS)
@@ -569,6 +631,15 @@ def play():
         player.update()
         for enemy in enemy_group:
             enemy.update()
+
+        # show relevant stats
+        draw_text(f'AMMO: ', BLACK, 10, 35)
+        for x in range(player.ammo):
+            screen.blit(bullet_img, (160 + (x * 10), 40))
+        draw_text(f'GRENADES: ', BLACK, 10, 70)
+        for x in range(player.num_grenades):
+            screen.blit(grenade_img, (300 + (x * 15), 75))
+        health_bar.draw(player.health)
 
         # update and draw groups
         bullet_group.update()
@@ -579,6 +650,9 @@ def play():
 
         explosion_group.update()
         explosion_group.draw(screen)
+
+        item_box_group.update()
+        item_box_group.draw(screen)
 
 
         for event in pygame.event.get():
