@@ -11,6 +11,7 @@ FPS = 120
 
 # Define game variables
 GRAVITY = 0.95
+TILE_SIZE = 40
 
 # Screen dimensions
 SCREEN_WIDTH = 1280
@@ -285,9 +286,14 @@ class Soldier(pygame.sprite.Sprite):
     def draw(self):
         screen.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
 
+
 # initialize soldier object for player
+enemy_group = pygame.sprite.Group()
 player = Soldier('player',200,200,3,4, 20, 5)
-enemy = Soldier('enemy',200,200,3,4, 20, 0)
+enemy1 = Soldier('enemy',200,200,3,4, 20, 0)
+enemy2 = Soldier('enemy',600,200,3,4, 20, 0)
+enemy_group.add(enemy1)
+enemy_group.add(enemy2)
 
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, x, y, direction):
@@ -312,10 +318,11 @@ class Bullet(pygame.sprite.Sprite):
                 player.health -= 5
                 self.kill()
 
-        if pygame.sprite.spritecollide(enemy, bullet_group, False):
-            if enemy.alive:
-                enemy.health -= 25
-                self.kill()
+        for enemy in enemy_group:
+            if pygame.sprite.spritecollide(enemy, bullet_group, False):
+                if enemy.alive:
+                    enemy.health -= 25
+                    self.kill()
 
 # create sprite groups
 bullet_group = pygame.sprite.Group()
@@ -350,9 +357,67 @@ class Grenade(pygame.sprite.Sprite):
         self.rect.x += dx
         self.rect.y += dy
 
+        # countdown timer
+        self.timer -= 1
+        if self.timer <= 0:
+            self.kill()
+            explosion = Explosion(self.rect.x, self.rect.y, 0.5)
+            explosion_group.add(explosion)
+            # do damage to character based on scale
+            if abs(self.rect.centerx - player.rect.centerx) < TILE_SIZE * 2 and abs(
+                    self.rect.centery - player.rect.centery) < TILE_SIZE * 2:
+                player.health -= 40
+            if abs(self.rect.centerx - player.rect.centerx) < TILE_SIZE and abs(
+                    self.rect.centery - player.rect.centery) < TILE_SIZE:
+                player.health -= 90
+
+            for enemy in enemy_group:
+                if abs(self.rect.centerx - enemy.rect.centerx) < TILE_SIZE * 2 and abs(
+                        self.rect.centery - enemy.rect.centery) < TILE_SIZE * 2:
+                    enemy.health -= 40
+                if abs(self.rect.centerx - enemy.rect.centerx) < TILE_SIZE and abs(
+                        self.rect.centery - enemy.rect.centery) < TILE_SIZE:
+                    enemy.health -= 90
+
+
 
 
 grenade_group = pygame.sprite.Group()
+
+class Explosion(pygame.sprite.Sprite):
+    def __init__(self, x, y, scale):
+        pygame.sprite.Sprite.__init__(self)
+        self.images = []
+        for i in range(1,6):
+            img = pygame.image.load(f'assets/img/explosion/exp{i}.png').convert_alpha()
+            width, height = img.get_size()
+            img = pygame.transform.scale(img, (int(width * scale), int(height * scale)))
+            self.images.append(img)
+        self.frame_index = 0
+        self.image = self.images[self.frame_index]
+        self.rect = self.image.get_rect()
+        self.rect.center = (x,y)
+        self.counter = 0
+
+    def update(self):
+        EXPLOSION_SPEED = 4
+
+        # update explosion animation
+        self.counter += 1
+
+        if self.counter >= EXPLOSION_SPEED:
+            self.counter = 0
+            self.frame_index += 1
+            # if the animation is complete, delete explosion
+            if self.frame_index >= len(self.images):
+                self.kill()
+            else:
+                self.image = self.images[self.frame_index]
+
+
+
+explosion_group = pygame.sprite.Group()
+
 
 def get_font(size):
     return pygame.font.Font("assets/menu_options/font.ttf", size)
@@ -502,7 +567,8 @@ def play():
         clock.tick(FPS)
         draw_bg()
         player.update()
-        enemy.update()
+        for enemy in enemy_group:
+            enemy.update()
 
         # update and draw groups
         bullet_group.update()
@@ -510,6 +576,9 @@ def play():
 
         grenade_group.update()
         grenade_group.draw(screen)
+
+        explosion_group.update()
+        explosion_group.draw(screen)
 
 
         for event in pygame.event.get():
