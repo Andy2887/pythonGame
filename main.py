@@ -34,6 +34,7 @@ BG = pygame.image.load("assets/menu_options/Background.jpg")
 BG_2 = pygame.image.load("assets/menu_options/Background_2.jpg")
 RECT_IMAGE = pygame.image.load("assets/menu_options/grey_rect.png")
 bullet_img = pygame.image.load('assets/img/icons/bullet.png').convert_alpha()
+grenade_img = pygame.image.load('assets/img/icons/grenade.png').convert_alpha()
 
 # Draw background
 def draw_bg():
@@ -74,7 +75,7 @@ class Button():
 
 # soldier class
 class Soldier(pygame.sprite.Sprite):
-    def __init__(self, char_type, x, y, scale, speed, ammo):
+    def __init__(self, char_type, x, y, scale, speed, ammo, num_grenades):
         pygame.sprite.Sprite.__init__(self)
         # basic parameters for soldier
         self.alive = True
@@ -100,6 +101,10 @@ class Soldier(pygame.sprite.Sprite):
         self.shoot_cooldown = 0
         self.health = 100
         self.max_health = self.health
+        self.num_grenades = num_grenades
+        self.grenade = False
+        self.grenade_thrown = False
+
 
         # create an animation list
         # Note:
@@ -247,9 +252,16 @@ class Soldier(pygame.sprite.Sprite):
     def shoot(self):
         if self.is_shooting and self.shoot_cooldown == 0 and self.ammo > 0:
             self.shoot_cooldown = 20
-            bullet = Bullet(self.rect.centerx + (0.6 * self.rect.size[0] * self.direction), self.rect.centery, self.direction)
+            bullet = Bullet(self.rect.centerx + (0.6 * self.rect.size[0] * self.direction),
+                            self.rect.centery, self.direction)
             bullet_group.add(bullet)
             self.ammo -= 1
+        elif self.grenade and not self.grenade_thrown and self.num_grenades > 0:
+            grenade = Grenade(self.rect.centerx + (0.6 * self.rect.size[0] * self.direction),
+                              self.rect.top, self.direction)
+            grenade_group.add(grenade)
+            self.grenade_thrown = True
+            self.num_grenades -= 1
 
     # a general method that updates everything for the soldier
 
@@ -274,8 +286,8 @@ class Soldier(pygame.sprite.Sprite):
         screen.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
 
 # initialize soldier object for player
-player = Soldier('player',200,200,3,4, 20)
-enemy = Soldier('enemy',200,200,3,4, 20)
+player = Soldier('player',200,200,3,4, 20, 5)
+enemy = Soldier('enemy',200,200,3,4, 20, 0)
 
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, x, y, direction):
@@ -308,7 +320,39 @@ class Bullet(pygame.sprite.Sprite):
 # create sprite groups
 bullet_group = pygame.sprite.Group()
 
+class Grenade(pygame.sprite.Sprite):
+    def __init__(self, x, y, direction):
+        pygame.sprite.Sprite.__init__(self)
+        self.timer = 100
+        self.vel_y = -11
+        self.speed = 12
+        self.image = grenade_img
+        self.rect = self.image.get_rect()
+        self.rect.center = (x,y)
+        self.direction = direction
 
+    def update(self):
+        self.vel_y += GRAVITY
+        dx = self.direction * self.speed
+        dy = self.vel_y
+
+        # check collision with ground
+        if self.rect.bottom + dy > 300:
+            dy = 300 - self.rect.bottom
+            dx = 0
+
+        # check if the grenade collide with walls
+        if self.rect.left + dx < 0 or self.rect.right + dx > SCREEN_WIDTH:
+            self.direction *= -1
+            dx = self.direction * self.speed
+
+        # update grenade position
+        self.rect.x += dx
+        self.rect.y += dy
+
+
+
+grenade_group = pygame.sprite.Group()
 
 def get_font(size):
     return pygame.font.Font("assets/menu_options/font.ttf", size)
@@ -354,6 +398,7 @@ def welcome_screen():
                     sys.exit()
 
         pygame.display.update()
+
 
 
 # options screen
@@ -463,6 +508,9 @@ def play():
         bullet_group.update()
         bullet_group.draw(screen)
 
+        grenade_group.update()
+        grenade_group.draw(screen)
+
 
         for event in pygame.event.get():
             # quit game
@@ -482,6 +530,8 @@ def play():
                     player.jump = True
                 if event.key == pygame.K_SPACE:
                     player.is_shooting = True
+                if event.key == pygame.K_g:
+                    player.grenade = True
 
             # keyboard button released
             if event.type == pygame.KEYUP:
@@ -493,7 +543,9 @@ def play():
                     player.moving_right = False
                 if event.key == pygame.K_SPACE:
                     player.is_shooting = False
-
+                if event.key == pygame.K_g:
+                    player.grenade = False
+                    player.grenade_thrown = False
 
         pygame.display.update()
 
