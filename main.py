@@ -1,5 +1,6 @@
 import pygame
 import sys
+import random
 
 
 # Initialize Pygame
@@ -126,6 +127,11 @@ class Soldier(pygame.sprite.Sprite):
         self.grenade = False
         self.grenade_thrown = False
 
+        # variables related to AI characters
+        self.move_counter = 0
+        self.idling = False
+        self.idling_counter = 100
+
 
         # create an animation list
         # Note:
@@ -211,7 +217,7 @@ class Soldier(pygame.sprite.Sprite):
         if self.alive:
             # assign moving variables
             if self.jump and not self.in_air:
-                self.vel_y = -11
+                self.vel_y = -15
                 self.jump = False
                 self.in_air = True
             elif self.moving_left:
@@ -286,6 +292,34 @@ class Soldier(pygame.sprite.Sprite):
 
     # a general method that updates everything for the soldier
 
+    def ai(self):
+        if self.alive and player.alive:
+            if not self.idling and random.randint(1,100) == 5:
+                self.idling = True
+                self.moving_right = False
+                self.moving_left = False
+
+            if self.idling:
+                self.idling_counter -= 1
+                if self.idling_counter <= 0:
+                    self.idling = False  # stop idling after the counter
+                    self.idling_counter = 100
+
+            else:
+                if self.direction == 1:
+                    self.moving_right = True
+                else:
+                    self.moving_right = False
+
+                self.moving_left = not self.moving_right
+                self.move_counter += 1
+
+                if self.move_counter > TILE_SIZE * 2:
+                    self.direction *= -1
+                    self.moving_right = not self.moving_right
+                    self.moving_left = not self.moving_left
+                    self.move_counter = 0
+
     def check_alive(self):
         if self.health <= 0:
             self.health = 0
@@ -323,11 +357,11 @@ class HealthBar():
 
 
 # initialize soldier object for player
-player = Soldier('player',200,200,3,4, 20, 5)
+player = Soldier('player',200,200,1.8,2, 20, 5)
 health_bar = HealthBar(10,10, player.health, player.health)
 
-enemy1 = Soldier('enemy',200,200,3,4, 20, 0)
-enemy2 = Soldier('enemy',600,200,3,4, 20, 0)
+enemy1 = Soldier('enemy',200,100,1.8,2, 20, 0)
+enemy2 = Soldier('enemy',600,100,1.8,2, 20, 0)
 enemy_group.add(enemy1)
 enemy_group.add(enemy2)
 
@@ -631,6 +665,7 @@ def play():
         player.update()
         for enemy in enemy_group:
             enemy.update()
+            enemy.ai()
 
         # show relevant stats
         draw_text(f'AMMO: ', BLACK, 10, 35)
