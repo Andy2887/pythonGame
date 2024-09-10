@@ -8,7 +8,7 @@ pygame.init()
 
 # set framerate
 clock = pygame.time.Clock()
-FPS = 120
+FPS = 60
 
 
 # Screen dimensions
@@ -73,7 +73,6 @@ exit_group = pygame.sprite.Group()
 # draw background
 def draw_bg():
     screen.fill(WHITE)
-    pygame.draw.line(screen, RED, (0, 300), (SCREEN_WIDTH, 300))
 
 def draw_text(text, text_col, x, y):
     font = get_font(30)
@@ -227,7 +226,7 @@ class Soldier(pygame.sprite.Sprite):
         self.rect.center = (x,y)
 
     # this method settles the variables related to moving, such as self.action, position, etc
-    def move(self):
+    def move(self, world):
         # reset movement variables
         dx = 0
         dy = 0
@@ -235,7 +234,7 @@ class Soldier(pygame.sprite.Sprite):
         if self.alive:
             # assign moving variables
             if self.jump and not self.in_air:
-                self.vel_y = -15
+                self.vel_y = -18
                 self.jump = False
                 self.in_air = True
             elif self.moving_left:
@@ -259,10 +258,21 @@ class Soldier(pygame.sprite.Sprite):
         self.vel_y += GRAVITY
         dy += self.vel_y
 
-        # check collision with floor
-        if self.rect.bottom + dy > 300:
-            dy = 300 - self.rect.bottom
-            self.in_air = False
+        # check collision
+        for tile in world.obstacle_list:
+            if tile[1].colliderect(self.rect.x + dx, self.rect.y, self.rect.width, self.rect.height):
+                dx = 0
+            if tile[1].colliderect(self.rect.x, self.rect.y + dy, self.rect.width, self.rect.height):
+                # check if below the ground, i.e. jumping
+                if self.vel_y < 0:
+                    self.vel_y = 0
+                    dy = tile[1].bottom - self.rect.top
+                # check if above ground
+                else:
+                    self.vel_y = 0
+                    self.in_air = False
+                    dy = tile[1].top - self.rect.bottom
+
 
         # update rect position
         self.rect.x += dx
@@ -296,7 +306,7 @@ class Soldier(pygame.sprite.Sprite):
 
     def shoot(self):
         if self.is_shooting and self.shoot_cooldown == 0 and self.ammo > 0:
-            self.shoot_cooldown = 20
+            self.shoot_cooldown = 10
             bullet = Bullet(self.rect.centerx + (0.6 * self.rect.size[0] * self.direction),
                             self.rect.centery, self.direction)
             bullet_group.add(bullet)
@@ -361,13 +371,13 @@ class Soldier(pygame.sprite.Sprite):
             self.alive = False
             self.update_action(3)
 
-    def update(self):
+    def update(self, world):
         # update cooldown
         if self.shoot_cooldown > 0:
             self.shoot_cooldown -= 1
         self.update_animation()
         self.draw()
-        self.move()
+        self.move(world)
         self.shoot()
         self.check_alive()
 
@@ -420,11 +430,11 @@ class World():
                     elif tile == 15:
                         global player, health_bar
                         # initialize soldier object for player
-                        player = Soldier('player', x * TILE_SIZE, y * TILE_SIZE, 1.8, 2, 20, 5)
+                        player = Soldier('player', x * TILE_SIZE, y * TILE_SIZE, 1.8, 4, 20, 5)
                         health_bar = HealthBar(10, 10, player.health, player.health)
                     elif tile == 16:
                         # create enemy
-                        enemy = Soldier('enemy', x * TILE_SIZE, y * TILE_SIZE, 1.8, 2, 20, 0)
+                        enemy = Soldier('enemy', x * TILE_SIZE, y * TILE_SIZE, 1.8, 4, 20, 0)
                         enemy_group.add(enemy)
                     elif tile == 17:
                         # create ammo box
@@ -500,13 +510,17 @@ class Bullet(pygame.sprite.Sprite):
         self.rect.center = (x,y)
         self.direction = direction
 
-    def update(self):
+    def update(self, world):
         # move the bullet
         self.rect.x += (self.direction * self.speed)
 
         # check if the bullet is outside screen
         if self.rect.right < 0 or self.rect.left > SCREEN_WIDTH:
             self.kill()
+
+        for tile in world.obstacle_list:
+            if tile[1].colliderect(self.rect):
+                self.kill()
 
         # check collision with characters
         if pygame.sprite.spritecollide(player, bullet_group, False):
@@ -533,20 +547,30 @@ class Grenade(pygame.sprite.Sprite):
         self.rect.center = (x,y)
         self.direction = direction
 
-    def update(self):
+    def update(self, world):
         self.vel_y += GRAVITY
         dx = self.direction * self.speed
         dy = self.vel_y
 
-        # check collision with ground
-        if self.rect.bottom + dy > 300:
-            dy = 300 - self.rect.bottom
-            dx = 0
+        # check for collision with level
+        for tile in world.obstacle_list:
 
-        # check if the grenade collide with walls
-        if self.rect.left + dx < 0 or self.rect.right + dx > SCREEN_WIDTH:
-            self.direction *= -1
-            dx = self.direction * self.speed
+            # check for collision with walls
+            if tile[1].colliderect(self.rect.x + dx, self.rect.y, self.rect.width, self.rect.height):
+                self.direction *= -1
+                dx = self.direction * self.speed
+
+            if tile[1].colliderect(self.rect.x, self.rect.y + dy, self.rect.width, self.rect.height):
+                self.speed = 0
+                # check if below the ground, i.e. throwing up
+                if self.vel_y < 0:
+                    self.vel_y = 0
+                    dy = tile[1].bottom - self.rect.top
+                # check if falling
+                else:
+                    self.vel_y = 0
+                    dy = tile[1].top - self.rect.bottom
+
 
         # update grenade position
         self.rect.x += dx
@@ -779,9 +803,9 @@ def play():
         clock.tick(FPS)
         draw_bg()
         world.draw()
-        player.update()
+        player.update(world)
         for enemy in enemy_group:
-            enemy.update()
+            enemy.update(world)
             enemy.ai()
 
         # show relevant stats
@@ -794,10 +818,10 @@ def play():
         health_bar.draw(player.health)
 
         # update and draw groups
-        bullet_group.update()
+        bullet_group.update(world)
         bullet_group.draw(screen)
 
-        grenade_group.update()
+        grenade_group.update(world)
         grenade_group.draw(screen)
 
         explosion_group.update()
