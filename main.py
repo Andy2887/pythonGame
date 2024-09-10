@@ -131,6 +131,7 @@ class Soldier(pygame.sprite.Sprite):
         self.move_counter = 0
         self.idling = False
         self.idling_counter = 100
+        self.vision = pygame.Rect(0, 0, 150, 20)
 
 
         # create an animation list
@@ -299,26 +300,43 @@ class Soldier(pygame.sprite.Sprite):
                 self.moving_right = False
                 self.moving_left = False
 
-            if self.idling:
-                self.idling_counter -= 1
-                if self.idling_counter <= 0:
-                    self.idling = False  # stop idling after the counter
-                    self.idling_counter = 100
+            # check if the ai is near the player
+            if self.vision.colliderect(player.rect):
+                # stop running and face player
+                self.idling = True
+                self.moving_right = False
+                self.moving_left = False
+                self.is_shooting = True
 
+            # if no player is in sight, continue to patrol
             else:
-                if self.direction == 1:
-                    self.moving_right = True
-                else:
-                    self.moving_right = False
+                self.is_shooting = False
+                if self.idling:
+                    self.idling_counter -= 1
+                    if self.idling_counter <= 0:
+                        self.idling = False  # stop idling after the counter
+                        self.idling_counter = 100
 
-                self.moving_left = not self.moving_right
-                self.move_counter += 1
+                else:
+                    if self.direction == 1:
+                        self.moving_right = True
+                    else:
+                        self.moving_right = False
+
+                    self.moving_left = not self.moving_right
+                    self.move_counter += 1
+
+                # update AI vision
+                self.vision.center = (self.rect.centerx + 75 * self.direction, self.rect.centery)
+                pygame.draw.rect(screen, RED, self.vision)
 
                 if self.move_counter > TILE_SIZE * 2:
                     self.direction *= -1
                     self.moving_right = not self.moving_right
                     self.moving_left = not self.moving_left
                     self.move_counter = 0
+        else:
+            self.is_shooting = False
 
     def check_alive(self):
         if self.health <= 0:
@@ -452,7 +470,7 @@ class Grenade(pygame.sprite.Sprite):
         self.timer -= 1
         if self.timer <= 0:
             self.kill()
-            explosion = Explosion(self.rect.x, self.rect.y, 0.5)
+            explosion = Explosion(self.rect.x, self.rect.y, 1)
             explosion_group.add(explosion)
             # do damage to character based on scale
             if abs(self.rect.centerx - player.rect.centerx) < TILE_SIZE * 2 and abs(
