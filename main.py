@@ -23,6 +23,9 @@ TILE_SIZE = SCREEN_HEIGHT // ROWS
 TILE_TYPES = 21
 difficulty = "Normal"
 level = 1
+SCROLL_THRESH = 200
+screen_scroll = 0
+bg_scroll = 0
 
 
 
@@ -46,6 +49,12 @@ grenade_img = pygame.image.load('assets/img/icons/grenade.png').convert_alpha()
 heal_box_img = pygame.image.load('assets/img/icons/health_box.png').convert_alpha()
 ammo_box_img = pygame.image.load('assets/img/icons/ammo_box.png').convert_alpha()
 grenade_box_img = pygame.image.load('assets/img/icons/grenade_box.png').convert_alpha()
+
+# loading background
+pine1_image = pygame.image.load('assets/img/background/pine1.png').convert_alpha()
+pine2_image = pygame.image.load('assets/img/background/pine2.png').convert_alpha()
+sky_cloud_image = pygame.image.load('assets/img/background/sky_cloud.png').convert_alpha()
+mountain_image = pygame.image.load('assets/img/background/mountain.png').convert_alpha()
 
 # store tiles in a list
 tile_img_list = []
@@ -72,7 +81,12 @@ exit_group = pygame.sprite.Group()
 
 # draw background
 def draw_bg():
-    screen.fill(WHITE)
+    width = sky_cloud_image.get_width()
+    for x in range(5):
+        screen.blit(sky_cloud_image, (x * width - bg_scroll * 0.5, 0))
+        screen.blit(mountain_image, (x * width - bg_scroll * 0.6, SCREEN_HEIGHT - mountain_image.get_height() - 300))
+        screen.blit(pine1_image, (x * width - bg_scroll * 0.7, SCREEN_HEIGHT - pine1_image.get_height() - 150))
+        screen.blit(pine2_image, (x * width - bg_scroll * 0.8, SCREEN_HEIGHT - pine2_image.get_height()))
 
 def draw_text(text, text_col, x, y):
     font = get_font(30)
@@ -227,6 +241,9 @@ class Soldier(pygame.sprite.Sprite):
 
     # this method settles the variables related to moving, such as self.action, position, etc
     def move(self, world):
+
+        screen_scroll = 0
+
         # reset movement variables
         dx = 0
         dy = 0
@@ -262,6 +279,10 @@ class Soldier(pygame.sprite.Sprite):
         for tile in world.obstacle_list:
             if tile[1].colliderect(self.rect.x + dx, self.rect.y, self.rect.width, self.rect.height):
                 dx = 0
+                # if the ai hits the wall, make it turn around
+                if self.char_type == 'enemy':
+                    self.direction *= -1
+                    self.move_counter = 0
             if tile[1].colliderect(self.rect.x, self.rect.y + dy, self.rect.width, self.rect.height):
                 # check if below the ground, i.e. jumping
                 if self.vel_y < 0:
@@ -273,10 +294,23 @@ class Soldier(pygame.sprite.Sprite):
                     self.in_air = False
                     dy = tile[1].top - self.rect.bottom
 
+        # check if going off the screen
+        if self.char_type == 'player':
+            if self.rect.left + dx < 0 or self.rect.right + dx > SCREEN_WIDTH:
+                dx = 0
 
         # update rect position
         self.rect.x += dx
         self.rect.y += dy
+
+        # update scroll
+        if self.char_type == 'player':
+            if ((self.rect.right > SCREEN_WIDTH - SCROLL_THRESH and bg_scroll < (world.level_length * TILE_SIZE) - SCREEN_WIDTH)
+                    or (self.rect.left < SCROLL_THRESH and bg_scroll > abs(dx))):
+                self.rect.x -= dx
+                screen_scroll = -dx
+
+        return screen_scroll
 
     # this method takes the self.action and update the animation pattern accordingly
     def update_animation(self):
@@ -364,6 +398,9 @@ class Soldier(pygame.sprite.Sprite):
         else:
             self.is_shooting = False
 
+        # scroll
+        self.rect.x += screen_scroll
+
     def check_alive(self):
         if self.health <= 0:
             self.health = 0
@@ -377,9 +414,10 @@ class Soldier(pygame.sprite.Sprite):
             self.shoot_cooldown -= 1
         self.update_animation()
         self.draw()
-        self.move(world)
+        screen_scroll = self.move(world)
         self.shoot()
         self.check_alive()
+        return screen_scroll
 
     def draw(self):
         screen.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
@@ -409,6 +447,7 @@ class World():
     def __init__(self):
         self.obstacle_list = []
     def process_data(self, data):
+        self.level_length = len(data[0])
         # iterate through each value in level data file
         for y, row in enumerate(data):
             for x, tile in enumerate(row):
@@ -454,6 +493,7 @@ class World():
 
     def draw(self):
         for tile in self.obstacle_list:
+            tile[1][0] += screen_scroll
             screen.blit(tile[0], tile[1])
 
 
@@ -464,12 +504,18 @@ class Decoration(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()))
 
+    def update(self):
+        self.rect.x += screen_scroll
+
 class Water(pygame.sprite.Sprite):
     def __init__(self, img, x, y):
         pygame.sprite.Sprite.__init__(self)
         self.image = img
         self.rect = self.image.get_rect()
         self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()))
+
+    def update(self):
+        self.rect.x += screen_scroll
 
 class Exit(pygame.sprite.Sprite):
     def __init__(self, img, x, y):
@@ -478,8 +524,12 @@ class Exit(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()))
 
+    def update(self):
+        self.rect.x += screen_scroll
+
 
 class ItemBox(pygame.sprite.Sprite):
+
     def __init__(self, item_type, x, y):
         pygame.sprite.Sprite.__init__(self)
         self.item_type = item_type
@@ -488,6 +538,7 @@ class ItemBox(pygame.sprite.Sprite):
         self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()))
 
     def update(self):
+        self.rect.x += screen_scroll
         if pygame.sprite.collide_rect(self, player):
             # check what kind of box it was
             if self.item_type == 'Health':
@@ -513,6 +564,7 @@ class Bullet(pygame.sprite.Sprite):
     def update(self, world):
         # move the bullet
         self.rect.x += (self.direction * self.speed)
+        self.rect.x += screen_scroll
 
         # check if the bullet is outside screen
         if self.rect.right < 0 or self.rect.left > SCREEN_WIDTH:
@@ -573,7 +625,7 @@ class Grenade(pygame.sprite.Sprite):
 
 
         # update grenade position
-        self.rect.x += dx
+        self.rect.x += dx + screen_scroll
         self.rect.y += dy
 
         # countdown timer
@@ -617,7 +669,7 @@ class Explosion(pygame.sprite.Sprite):
 
     def update(self):
         EXPLOSION_SPEED = 4
-
+        self.rect.x += screen_scroll
         # update explosion animation
         self.counter += 1
 
@@ -647,7 +699,7 @@ def welcome_screen():
 
         MENU_MOUSE_POS = pygame.mouse.get_pos()
 
-        MENU_TEXT = get_font(60).render("DON'T BUMP YOUR HEAD", True, BLACK)
+        MENU_TEXT = get_font(30).render("DON'T BUMP YOUR HEAD", True, BLACK)
         MENU_RECT = MENU_TEXT.get_rect(center=(640, 125))
 
         #initialize buttons
@@ -803,7 +855,10 @@ def play():
         clock.tick(FPS)
         draw_bg()
         world.draw()
-        player.update(world)
+        global screen_scroll, bg_scroll
+        screen_scroll = player.update(world)
+        bg_scroll -= screen_scroll
+
         for enemy in enemy_group:
             enemy.update(world)
             enemy.ai()
@@ -819,24 +874,19 @@ def play():
 
         # update and draw groups
         bullet_group.update(world)
-        bullet_group.draw(screen)
-
-        grenade_group.update(world)
-        grenade_group.draw(screen)
-
+        grenade_group.update()
         explosion_group.update()
-        explosion_group.draw(screen)
-
         item_box_group.update()
-        item_box_group.draw(screen)
-
         decoration_group.update()
-        decoration_group.draw(screen)
-
         water_group.update()
-        water_group.draw(screen)
-
         exit_group.update()
+
+        bullet_group.draw(screen)
+        grenade_group.draw(screen)
+        explosion_group.draw(screen)
+        item_box_group.draw(screen)
+        decoration_group.draw(screen)
+        water_group.draw(screen)
         exit_group.draw(screen)
 
 
