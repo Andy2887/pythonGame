@@ -874,7 +874,7 @@ def play():
 
         # update and draw groups
         bullet_group.update(world)
-        grenade_group.update()
+        grenade_group.update(world)
         explosion_group.update()
         item_box_group.update()
         decoration_group.update()
@@ -927,7 +927,6 @@ def play():
                     player.grenade_thrown = False
 
         pygame.display.update()
-
 
 welcome_screen()
 
