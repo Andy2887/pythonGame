@@ -8,7 +8,7 @@ pygame.init()
 
 # set framerate
 clock = pygame.time.Clock()
-FPS = 60
+FPS = 75
 
 
 # Screen dimensions
@@ -43,12 +43,17 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 # assets loading
 BG = pygame.image.load("assets/menu_options/Background.jpg")
 BG_2 = pygame.image.load("assets/menu_options/Background_2.jpg")
-RECT_IMAGE = pygame.image.load("assets/menu_options/grey_rect.png")
+rect_image = pygame.image.load("assets/menu_options/grey_rect.png")
 bullet_img = pygame.image.load('assets/img/icons/bullet.png').convert_alpha()
 grenade_img = pygame.image.load('assets/img/icons/grenade.png').convert_alpha()
 heal_box_img = pygame.image.load('assets/img/icons/health_box.png').convert_alpha()
 ammo_box_img = pygame.image.load('assets/img/icons/ammo_box.png').convert_alpha()
 grenade_box_img = pygame.image.load('assets/img/icons/grenade_box.png').convert_alpha()
+
+# transform the size of button
+rect_image_width = rect_image.get_width()
+rect_image_height = rect_image.get_height()
+rect_image = pygame.transform.scale(rect_image, (int(rect_image_width * 0.8), int(rect_image_height * 0.8)))
 
 # loading background
 pine1_image = pygame.image.load('assets/img/background/pine1.png').convert_alpha()
@@ -293,6 +298,14 @@ class Soldier(pygame.sprite.Sprite):
                     self.vel_y = 0
                     self.in_air = False
                     dy = tile[1].top - self.rect.bottom
+
+        # check for collision with water
+        if pygame.sprite.spritecollide(self, water_group, False):
+            self.health = 0
+
+        # check if fallen off the map
+        if self.rect.bottom > SCREEN_HEIGHT:
+            self.health = 0
 
         # check if going off the screen
         if self.char_type == 'player':
@@ -683,6 +696,23 @@ class Explosion(pygame.sprite.Sprite):
                 self.image = self.images[self.frame_index]
 
 
+def reset_level():
+    enemy_group.empty()
+    bullet_group.empty()
+    grenade_group.empty()
+    explosion_group.empty()
+    item_box_group.empty()
+    decoration_group.empty()
+    water_group.empty()
+    exit_group.empty()
+
+    # create empty tile list
+    data = []
+    for row in range(ROWS):
+        r = [-1] * COLS
+        data.append(r)
+
+    return data
 
 
 
@@ -695,19 +725,22 @@ def welcome_screen():
     pygame.display.set_caption("Welcome Screen")
 
     while True:
-        screen.blit(BG, (0, 0))
+        screen.blit(sky_cloud_image, (0, 0))
+        screen.blit(mountain_image, (0, SCREEN_HEIGHT - mountain_image.get_height() - 300))
+        screen.blit(pine1_image, (0, SCREEN_HEIGHT - pine1_image.get_height() - 150))
+        screen.blit(pine2_image, (0, SCREEN_HEIGHT - pine2_image.get_height()))
 
         MENU_MOUSE_POS = pygame.mouse.get_pos()
 
-        MENU_TEXT = get_font(30).render("DON'T BUMP YOUR HEAD", True, BLACK)
-        MENU_RECT = MENU_TEXT.get_rect(center=(640, 125))
+        MENU_TEXT = get_font(50).render("Pixel Fury", True, BLACK)
+        MENU_RECT = MENU_TEXT.get_rect(center=(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.195))
 
         #initialize buttons
-        PLAY_BUTTON = Button(image=RECT_IMAGE, pos=(640, 300),
+        PLAY_BUTTON = Button(image=rect_image, pos=(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.4),
                              text_input="PLAY", font=get_font(30), base_color="#d7fcd4", hover_color="White")
-        OPTIONS_BUTTON = Button(image=RECT_IMAGE, pos=(640, 450),
+        OPTIONS_BUTTON = Button(image=rect_image, pos=(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.6),
                                 text_input="OPTIONS", font=get_font(30), base_color="#d7fcd4", hover_color="White")
-        QUIT_BUTTON = Button(image=RECT_IMAGE, pos=(640, 600),
+        QUIT_BUTTON = Button(image=rect_image, pos=(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.8),
                              text_input="QUIT", font=get_font(30), base_color="#d7fcd4", hover_color="White")
 
         screen.blit(MENU_TEXT, MENU_RECT)
@@ -740,22 +773,25 @@ def options():
     while True:
         OPTIONS_MOUSE_POS = pygame.mouse.get_pos()
 
-        screen.blit(BG_2, (0, 0))
+        screen.blit(sky_cloud_image, (0, 0))
+        screen.blit(mountain_image, (0, SCREEN_HEIGHT - mountain_image.get_height() - 300))
+        screen.blit(pine1_image, (0, SCREEN_HEIGHT - pine1_image.get_height() - 150))
+        screen.blit(pine2_image, (0, SCREEN_HEIGHT - pine2_image.get_height()))
 
-        OPTIONS_TEXT = get_font(45).render("Please choose difficulty.", True, "White")
-        OPTIONS_RECT = OPTIONS_TEXT.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 5))
+        OPTIONS_TEXT = get_font(30).render("Please choose difficulty.", True, "Black")
+        OPTIONS_RECT = OPTIONS_TEXT.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT * 0.2))
         screen.blit(OPTIONS_TEXT, OPTIONS_RECT)
 
-        OPTIONS_BACK = Button(image=RECT_IMAGE, pos=(SCREEN_WIDTH // 2, 600),
+        OPTIONS_BACK = Button(image=rect_image, pos=(SCREEN_WIDTH // 2, SCREEN_HEIGHT * 0.84),
                               text_input="BACK", font=get_font(30), base_color="Black", hover_color=WHITE)
 
-        OPTIONS_EASY = Button(image=RECT_IMAGE, pos=(SCREEN_WIDTH // 2, 275),
+        OPTIONS_EASY = Button(image=rect_image, pos=(SCREEN_WIDTH // 2, SCREEN_HEIGHT * 0.36),
                               text_input="EASY", font=get_font(40), base_color=GREEN, hover_color=WHITE)
 
-        OPTIONS_NORMAL = Button(image=RECT_IMAGE, pos=(SCREEN_WIDTH // 2, 375),
-                              text_input="NORMAL", font=get_font(40), base_color=BABY_BLUE, hover_color=WHITE)
+        OPTIONS_NORMAL = Button(image=rect_image, pos=(SCREEN_WIDTH // 2, SCREEN_HEIGHT * 0.52),
+                                text_input="NORMAL", font=get_font(40), base_color=BABY_BLUE, hover_color=WHITE)
 
-        OPTIONS_HARD = Button(image=RECT_IMAGE, pos=(SCREEN_WIDTH // 2, 475),
+        OPTIONS_HARD = Button(image=rect_image, pos=(SCREEN_WIDTH // 2, SCREEN_HEIGHT * 0.68),
                               text_input="HARD", font=get_font(40), base_color=RED, hover_color=WHITE)
 
         for button in [OPTIONS_BACK, OPTIONS_EASY, OPTIONS_NORMAL, OPTIONS_HARD]:
@@ -785,11 +821,14 @@ def difficulty_set_screen():
     while True:
         DIFFICULTY_SET_MOUSE_POS = pygame.mouse.get_pos()
 
-        screen.blit(BG_2, (0, 0))
+        screen.blit(sky_cloud_image, (0, 0))
+        screen.blit(mountain_image, (0, SCREEN_HEIGHT - mountain_image.get_height() - 300))
+        screen.blit(pine1_image, (0, SCREEN_HEIGHT - pine1_image.get_height() - 150))
+        screen.blit(pine2_image, (0, SCREEN_HEIGHT - pine2_image.get_height()))
 
         # render the first line
         line1 = "Your difficulty is set to:"
-        DIFFICULTY_SET_TEXT_1 = get_font(40).render(line1, True, "White")
+        DIFFICULTY_SET_TEXT_1 = get_font(30).render(line1, True, "Black")
         DIFFICULTY_SET_RECT_1 = DIFFICULTY_SET_TEXT_1.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3))
 
         # set Difficulty Color
@@ -824,6 +863,40 @@ def difficulty_set_screen():
 
         pygame.display.update()
 
+def death_screen():
+    while True:
+        DEATH_SCREEN_MOUTH_POS = pygame.mouse.get_pos()
+        screen.blit(sky_cloud_image, (0, 0))
+        screen.blit(mountain_image, (0, SCREEN_HEIGHT - mountain_image.get_height() - 300))
+        screen.blit(pine1_image, (0, SCREEN_HEIGHT - pine1_image.get_height() - 150))
+        screen.blit(pine2_image, (0, SCREEN_HEIGHT - pine2_image.get_height()))
+
+        line1 = "YOU DIED!!!"
+        death_text = get_font(30).render(line1, True, "Black")
+
+        death_rect = death_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3))
+        screen.blit(death_text, death_rect)
+
+        restart_button = Button(image=rect_image, pos=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2.5),
+                                     text_input="RESTART", font=get_font(40), base_color="Black", hover_color="Yellow")
+        quit_button = Button(image=rect_image, pos=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 1.25 - 50),
+                                     text_input="QUIT", font=get_font(40), base_color="Black", hover_color="Yellow")
+
+        restart_button.update(screen)
+        quit_button.update(screen)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if restart_button.checkForInput(DEATH_SCREEN_MOUTH_POS):
+                    play()
+                if quit_button.checkForInput(DEATH_SCREEN_MOUTH_POS):
+                    welcome_screen()
+
+
+        pygame.display.update()
 
 
 
@@ -851,7 +924,6 @@ def play():
 
 
     while True:
-
         clock.tick(FPS)
         draw_bg()
         world.draw()
@@ -889,6 +961,24 @@ def play():
         water_group.draw(screen)
         exit_group.draw(screen)
 
+        if not player.alive:
+            event_mouse = pygame.mouse.get_pos()
+            screen_scroll = 0
+            line1 = "YOU DIED!!!"
+            death_text = get_font(50).render(line1, True, "Red")
+
+            death_rect = death_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3.75))
+            screen.blit(death_text, death_rect)
+
+            restart_button = Button(image=rect_image, pos=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2),
+                                    text_input="RESTART", font=get_font(40), base_color="Black",
+                                    hover_color="Yellow")
+            quit_button = Button(image=rect_image, pos=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 1.25 - 50),
+                                 text_input="QUIT", font=get_font(40), base_color="Black", hover_color="Yellow")
+
+            restart_button.update(screen)
+            quit_button.update(screen)
+
 
 
         for event in pygame.event.get():
@@ -896,35 +986,53 @@ def play():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            if player.alive:
 
-            # keyboard presses
-            if event.type == pygame.KEYDOWN:
+                # keyboard presses
+                if event.type == pygame.KEYDOWN:
+                    # player movement
+                    if event.key == pygame.K_a:
+                        player.moving_left = True
+                    if event.key == pygame.K_d:
+                        player.moving_right = True
+                    if event.key == pygame.K_w:
+                        player.jump = True
+                    if event.key == pygame.K_SPACE:
+                        player.is_shooting = True
+                    if event.key == pygame.K_g:
+                        player.grenade = True
 
-                # player movement
-                if event.key == pygame.K_a:
-                    player.moving_left = True
-                if event.key == pygame.K_d:
-                    player.moving_right = True
-                if event.key == pygame.K_w:
-                    player.jump = True
-                if event.key == pygame.K_SPACE:
-                    player.is_shooting = True
-                if event.key == pygame.K_g:
-                    player.grenade = True
+                # keyboard button released
+                if event.type == pygame.KEYUP:
 
-            # keyboard button released
-            if event.type == pygame.KEYUP:
+                    # player movement
+                    if event.key == pygame.K_a:
+                        player.moving_left = False
+                    if event.key == pygame.K_d:
+                        player.moving_right = False
+                    if event.key == pygame.K_SPACE:
+                        player.is_shooting = False
+                    if event.key == pygame.K_g:
+                        player.grenade = False
+                        player.grenade_thrown = False
 
-                # player movement
-                if event.key == pygame.K_a:
-                    player.moving_left = False
-                if event.key == pygame.K_d:
-                    player.moving_right = False
-                if event.key == pygame.K_SPACE:
-                    player.is_shooting = False
-                if event.key == pygame.K_g:
-                    player.grenade = False
-                    player.grenade_thrown = False
+            else:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if restart_button.checkForInput(event_mouse):
+                        bg_scroll = 0
+                        world_data = reset_level()
+                        # load in level data and create world
+                        with open(f'assets/level{level}_data.csv', newline='') as csvfile:
+                            reader = csv.reader(csvfile, delimiter=',')
+                            for x, row in enumerate(reader):
+                                for y, tile in enumerate(row):
+                                    world_data[x][y] = int(tile)
+
+                        world = World()
+                        world.process_data(world_data)
+                    if quit_button.checkForInput(event_mouse):
+                        pygame.quit()
+                        sys.exit()
 
         pygame.display.update()
 

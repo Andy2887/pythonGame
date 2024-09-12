@@ -1,0 +1,30 @@
+            else:
+                screen_scroll = 0
+                line1 = "YOU DIED!!!"
+                death_text = get_font(30).render(line1, True, "Black")
+
+                death_rect = death_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3))
+                screen.blit(death_text, death_rect)
+
+                restart_button = Button(image=rect_image, pos=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2.5),
+                                        text_input="RESTART", font=get_font(40), base_color="Black",
+                                        hover_color="Yellow")
+                quit_button = Button(image=rect_image, pos=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 1.25 - 50),
+                                     text_input="QUIT", font=get_font(40), base_color="Black", hover_color="Yellow")
+
+                restart_button.update(screen)
+                quit_button.update(screen)
+
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if restart_button.checkForInput(event_mouse):
+                        bg_scroll = 0
+                        world_data = reset_level()
+                        # load in level data and create world
+                        with open(f'assets/level{level}_data.csv', newline='') as csvfile:
+                            reader = csv.reader(csvfile, delimiter=',')
+                            for x, row in enumerate(reader):
+                                for y, tile in enumerate(row):
+                                    world_data[x][y] = int(tile)
+
+                        world = World()
+                        world.process_data(world_data)
