@@ -287,6 +287,7 @@ class Soldier(pygame.sprite.Sprite):
             if tile[1].colliderect(self.rect.x + dx, self.rect.y, self.rect.width, self.rect.height):
                 dx = 0
 
+
             if tile[1].colliderect(self.rect.x, self.rect.y + dy, self.rect.width, self.rect.height):
                 # check if below the ground, i.e. jumping
                 if self.vel_y < 0:
@@ -407,6 +408,8 @@ class Soldier(pygame.sprite.Sprite):
                     self.moving_right = not self.moving_right
                     self.moving_left = not self.moving_left
                     self.move_counter = 0
+
+
         else:
             self.is_shooting = False
 
