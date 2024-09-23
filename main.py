@@ -10,6 +10,8 @@ pygame.init()
 clock = pygame.time.Clock()
 FPS = 75
 
+# game version
+version = "0.1.0"
 
 # Screen dimensions
 SCREEN_WIDTH = 800
@@ -284,10 +286,7 @@ class Soldier(pygame.sprite.Sprite):
         for tile in world.obstacle_list:
             if tile[1].colliderect(self.rect.x + dx, self.rect.y, self.rect.width, self.rect.height):
                 dx = 0
-                # if the ai hits the wall, make it turn around
-                if self.char_type == 'enemy':
-                    self.direction *= -1
-                    self.move_counter = 0
+
             if tile[1].colliderect(self.rect.x, self.rect.y + dy, self.rect.width, self.rect.height):
                 # check if below the ground, i.e. jumping
                 if self.vel_y < 0:
@@ -735,6 +734,10 @@ def welcome_screen():
         MENU_TEXT = get_font(50).render("Pixel Fury", True, BLACK)
         MENU_RECT = MENU_TEXT.get_rect(center=(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.195))
 
+        Version_Text = get_font(15).render(f"version: {version}", True, WHITE)
+        Version_Rect = Version_Text.get_rect(center=(SCREEN_WIDTH * 0.16, SCREEN_HEIGHT * 0.93))
+
+
         #initialize buttons
         PLAY_BUTTON = Button(image=rect_image, pos=(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.4),
                              text_input="PLAY", font=get_font(30), base_color="#d7fcd4", hover_color="White")
@@ -744,6 +747,7 @@ def welcome_screen():
                              text_input="QUIT", font=get_font(30), base_color="#d7fcd4", hover_color="White")
 
         screen.blit(MENU_TEXT, MENU_RECT)
+        screen.blit(Version_Text, Version_Rect)
 
         for button in [PLAY_BUTTON, OPTIONS_BUTTON, QUIT_BUTTON]:
             button.changeColor(MENU_MOUSE_POS)
