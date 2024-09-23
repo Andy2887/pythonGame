@@ -1,0 +1,6 @@
+To overwrite local repository:
+
+git fetch origin
+git checkout main.py
+git reset --hard origin/main.py
+git clean -f -d
