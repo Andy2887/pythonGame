@@ -1,3 +1,8 @@
+# Reference: https://github.com/russs123/Shooter
+# Author: Liheng Yuan
+# This code is based on the repository linked above, with additional modifications.
+# I'm still adding improvements to the existing code from time to time.
+
 import pygame
 import sys
 import random
@@ -28,7 +33,7 @@ level = 1
 SCROLL_THRESH = 200
 screen_scroll = 0
 bg_scroll = 0
-
+level_complete = False
 
 
 # Colors
@@ -303,6 +308,11 @@ class Soldier(pygame.sprite.Sprite):
         if pygame.sprite.spritecollide(self, water_group, False):
             self.health = 0
 
+        # check for collision with exit
+        level_complete = False;
+        if pygame.sprite.spritecollide(self, exit_group, False):
+            level_complete = True;
+
         # check if fallen off the map
         if self.rect.bottom > SCREEN_HEIGHT:
             self.health = 0
@@ -323,7 +333,7 @@ class Soldier(pygame.sprite.Sprite):
                 self.rect.x -= dx
                 screen_scroll = -dx
 
-        return screen_scroll
+        return screen_scroll, level_complete
 
     # this method takes the self.action and update the animation pattern accordingly
     def update_animation(self):
@@ -429,10 +439,10 @@ class Soldier(pygame.sprite.Sprite):
             self.shoot_cooldown -= 1
         self.update_animation()
         self.draw()
-        screen_scroll = self.move(world)
+        screen_scroll, level_complete = self.move(world)
         self.shoot()
         self.check_alive()
-        return screen_scroll
+        return screen_scroll, level_complete
 
     def draw(self):
         screen.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
@@ -870,40 +880,6 @@ def difficulty_set_screen():
 
         pygame.display.update()
 
-def death_screen():
-    while True:
-        DEATH_SCREEN_MOUTH_POS = pygame.mouse.get_pos()
-        screen.blit(sky_cloud_image, (0, 0))
-        screen.blit(mountain_image, (0, SCREEN_HEIGHT - mountain_image.get_height() - 300))
-        screen.blit(pine1_image, (0, SCREEN_HEIGHT - pine1_image.get_height() - 150))
-        screen.blit(pine2_image, (0, SCREEN_HEIGHT - pine2_image.get_height()))
-
-        line1 = "YOU DIED!!!"
-        death_text = get_font(30).render(line1, True, "Black")
-
-        death_rect = death_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3))
-        screen.blit(death_text, death_rect)
-
-        restart_button = Button(image=rect_image, pos=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2.5),
-                                     text_input="RESTART", font=get_font(40), base_color="Black", hover_color="Yellow")
-        quit_button = Button(image=rect_image, pos=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 1.25 - 50),
-                                     text_input="QUIT", font=get_font(40), base_color="Black", hover_color="Yellow")
-
-        restart_button.update(screen)
-        quit_button.update(screen)
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if restart_button.checkForInput(DEATH_SCREEN_MOUTH_POS):
-                    play()
-                if quit_button.checkForInput(DEATH_SCREEN_MOUTH_POS):
-                    welcome_screen()
-
-
-        pygame.display.update()
 
 
 
@@ -934,8 +910,8 @@ def play():
         clock.tick(FPS)
         draw_bg()
         world.draw()
-        global screen_scroll, bg_scroll
-        screen_scroll = player.update(world)
+        global screen_scroll, bg_scroll, level_complete
+        screen_scroll, level_complete = player.update(world)
         bg_scroll -= screen_scroll
 
         for enemy in enemy_group:
@@ -986,6 +962,23 @@ def play():
             restart_button.update(screen)
             quit_button.update(screen)
 
+        if level_complete:
+            event_mouse = pygame.mouse.get_pos()
+            screen_scroll = 0
+            line1 = "YOU WIN!!!"
+            win_text = get_font(50).render(line1, True, "Red")
+
+            win_rect = win_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3.75))
+            screen.blit(win_text, win_rect)
+
+            restart_button = Button(image=rect_image, pos=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2),
+                                    text_input="RESTART", font=get_font(40), base_color="Black",
+                                    hover_color="Yellow")
+            quit_button = Button(image=rect_image, pos=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 1.25 - 50),
+                                 text_input="QUIT", font=get_font(40), base_color="Black", hover_color="Yellow")
+
+            restart_button.update(screen)
+            quit_button.update(screen)
 
 
         for event in pygame.event.get():
@@ -993,7 +986,7 @@ def play():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            if player.alive:
+            if player.alive and not level_complete:
 
                 # keyboard presses
                 if event.type == pygame.KEYDOWN:
