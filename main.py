@@ -1,7 +1,7 @@
 # Reference: https://github.com/russs123/Shooter
 # Author: Liheng Yuan
 # This code is based on the repository linked above, with additional modifications.
-# I'm still adding improvements to the existing code from time to time.
+
 
 import pygame
 import sys
