@@ -24,12 +24,22 @@ The objective of the game is to reach the far right end of the map.
 
 1. **Clone the repository**:
 
-2. **Install the required packages**:
+2. **Create a virtual environment**:
+   ```bash
+   python -m venv .venv
+   ```
+
+3. **Activate the virtual environment**:
+   ```bash
+   source .venv/bin/activate
+   ```
+
+4. **Install the required packages**:
    ```bash
    pip install pygame
    ```
 
-3. **Run the game**:
+5. **Run the game**:
    ```bash
    python main.py
    ```
